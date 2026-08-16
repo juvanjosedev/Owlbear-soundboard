@@ -134,6 +134,53 @@ body {
   color: #ff6b35;
 }
 
+.yt-row {
+  display: flex;
+  gap: 6px;
+}
+
+.yt-input {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #5c5d68;
+  background: #24252b;
+  color: #f2f2f2;
+  font-size: 12px;
+}
+
+.yt-input::placeholder {
+  color: #8a8b93;
+}
+
+.yt-add-btn {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  background: #444552;
+  color: #f2f2f2;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.yt-add-btn:hover {
+  background: #52535f;
+}
+
+.yt-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  background: #ff0033;
+  color: #fff;
+  border-radius: 4px;
+  padding: 1px 4px;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
 .unlock-btn {
   width: 100%;
   padding: 8px;
