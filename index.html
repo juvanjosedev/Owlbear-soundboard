@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Soundboard</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <h1>Soundboard</h1>
+      <div class="volume-wrap">
+        <span class="volume-icon">🔊</span>
+        <input id="volume" type="range" min="0" max="1" step="0.01" />
+      </div>
+    </header>
+
+    <div id="list" class="list"></div>
+
+    <footer class="footer">
+      <button id="unlockBtn" class="unlock-btn" style="display:none">Clique para habilitar o áudio</button>
+      <p id="status" class="status"></p>
+      <button id="addBtn" class="add-btn">+ Adicionar som</button>
+      <input id="fileInput" type="file" accept="audio/*" style="display:none" />
+    </footer>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

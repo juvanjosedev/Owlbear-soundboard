@@ -1,0 +1,21 @@
+{
+  "name": "Soundboard EBX",
+  "version": "1.0.0",
+  "manifest_version": 1,
+  "description": "Soundboard sincronizado: toque efeitos sonoros para todos na sala",
+  "icon": "icon.svg",
+  "author": "EBX Digital",
+  "action": {
+    "title": "Soundboard",
+    "icon": "icon.svg",
+    "popover": "index.html",
+    "width": 380,
+    "height": 560
+  },
+  "permissions": [
+    {
+      "name": "autoplay",
+      "reason": "Tocar o efeito sonoro automaticamente quando outro jogador aciona o botão"
+    }
+  ]
+}
