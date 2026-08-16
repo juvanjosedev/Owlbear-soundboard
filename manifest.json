@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "manifest_version": 1,
   "description": "Soundboard sincronizado: toque efeitos sonoros para todos na sala",
-  "icon": "icon.svg",
+  "icon": "https://juvanjosedev.github.io/Owlbear-soundboard/icon.svg",
   "author": "OwlSound",
   "action": {
     "title": "Soundboard",
-    "icon": "icon.svg",
-    "popover": "index.html",
+    "icon": "https://juvanjosedev.github.io/Owlbear-soundboard/icon.svg",
+    "popover": "https://juvanjosedev.github.io/Owlbear-soundboard/index.html",
     "width": 380,
     "height": 560
   },
