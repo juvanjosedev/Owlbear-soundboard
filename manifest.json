@@ -1,10 +1,10 @@
 {
-  "name": "Soundboard EBX",
+  "name": "OwlSound",
   "version": "1.0.0",
   "manifest_version": 1,
   "description": "Soundboard sincronizado: toque efeitos sonoros para todos na sala",
   "icon": "icon.svg",
-  "author": "EBX Digital",
+  "author": "OwlSound",
   "action": {
     "title": "Soundboard",
     "icon": "icon.svg",

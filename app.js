@@ -1,11 +1,11 @@
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@2";
 
 // ⚠️ Ajuste esta URL para o endpoint do seu Cloudflare Worker (veja README)
-const UPLOAD_URL = "https://ebx-soundboard-upload.SEUSUBDOMINIO.workers.dev/upload";
+const UPLOAD_URL = "https://owlsound-upload.SEUSUBDOMINIO.workers.dev/upload";
 
-const CHANNEL = "com.ebxdigital.soundboard/play";
-const META_KEY = "com.ebxdigital.soundboard/sounds";
-const VOLUME_KEY = "ebx_soundboard_volume";
+const CHANNEL = "com.owlsound.app/play";
+const META_KEY = "com.owlsound.app/sounds";
+const VOLUME_KEY = "owlsound_volume";
 
 let sounds = [];
 let role = "PLAYER";
