@@ -1,7 +1,7 @@
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@2";
 
 // ⚠️ Ajuste esta URL para o endpoint do seu Cloudflare Worker (veja README)
-const UPLOAD_URL = "https://owlsound-upload.owlbearsoundboard.workers.dev";
+const UPLOAD_URL = "https://owlsound-upload.owlbearsoundboard.workers.dev/upload";
 
 const CHANNEL = "com.owlsound.app/play";
 const META_KEY = "com.owlsound.app/sounds";
