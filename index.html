@@ -10,11 +10,26 @@
   <div class="app">
     <header class="topbar">
       <h1>Soundboard</h1>
-      <div class="volume-wrap">
-        <span class="volume-icon">🔊</span>
-        <input id="volume" type="range" min="0" max="1" step="0.01" />
+      <div class="header-controls">
+        <button id="stopAllBtn" class="stop-all-btn" title="Parar todos os sons">⏹</button>
+        <div class="volume-wrap">
+          <span class="volume-icon">🔊</span>
+          <input id="volume" type="range" min="0" max="1" step="0.01" />
+        </div>
       </div>
     </header>
+
+    <div id="gmToolbar" class="gm-toolbar">
+      <div class="folder-create-row">
+        <input id="folderNameInput" type="text" class="folder-name-input" placeholder="Nome da nova pasta" />
+        <button id="createFolderBtn" class="folder-create-btn">+ Pasta</button>
+      </div>
+      <div class="playlist-io-row">
+        <button id="exportBtn" class="io-btn">Exportar playlist</button>
+        <button id="importBtn" class="io-btn">Importar playlist</button>
+        <input id="importFileInput" type="file" accept="application/json" style="display:none" />
+      </div>
+    </div>
 
     <div id="list" class="list"></div>
 
@@ -30,6 +45,21 @@
         <button id="ytAddBtn" class="yt-add-btn">Adicionar</button>
       </div>
     </footer>
+  </div>
+
+  <div id="exportModal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <h2>Exportar playlist</h2>
+      <p class="modal-hint">
+        O download deve começar automaticamente. Se não abrir, copie o texto abaixo
+        e salve como um arquivo .json.
+      </p>
+      <textarea id="exportTextarea" class="modal-textarea" readonly></textarea>
+      <div class="modal-actions">
+        <button id="copyExportBtn" class="modal-btn">Copiar texto</button>
+        <button id="closeExportBtn" class="modal-btn modal-btn-secondary">Fechar</button>
+      </div>
+    </div>
   </div>
 
   <div id="yt-player-container" style="position:absolute; width:0; height:0; overflow:hidden;"></div>
