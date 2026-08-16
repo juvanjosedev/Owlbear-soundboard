@@ -9,8 +9,8 @@
     "title": "Soundboard",
     "icon": "https://juvanjosedev.github.io/Owlbear-soundboard/icon.svg",
     "popover": "https://juvanjosedev.github.io/Owlbear-soundboard/index.html",
-    "width": 380,
-    "height": 560
+    "width": 460,
+    "height": 720
   },
   "permissions": [
     {

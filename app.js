@@ -7,6 +7,7 @@ const CHANNEL = "com.owlsound.app/play";
 const META_KEY = "com.owlsound.app/sounds";
 const FOLDERS_KEY = "com.owlsound.app/folders";
 const VOLUME_KEY = "owlsound_volume";
+const SOUND_VOLUMES_KEY = "owlsound_sound_volumes";
 const YT_CONTAINER_ID = "yt-player-container";
 
 let sounds = [];
@@ -14,6 +15,14 @@ let folders = [];
 let role = "PLAYER";
 let volume = parseFloat(localStorage.getItem(VOLUME_KEY) ?? "0.8");
 let audioUnlocked = false;
+// Volume individual de cada som (0 a 1), multiplicado pelo volume geral. Fica
+// salvo localmente nesta aba/navegador, não é sincronizado com outros jogadores.
+let soundVolumes = {};
+try {
+  soundVolumes = JSON.parse(localStorage.getItem(SOUND_VOLUMES_KEY) || "{}");
+} catch {
+  soundVolumes = {};
+}
 // Um player de YouTube por som (permite vários vídeos tocando ao mesmo tempo)
 const ytPlayers = new Map(); // id -> instância YT.Player
 
@@ -23,6 +32,12 @@ const activeAudio = new Map();
 const soundState = new Map();
 // Pastas recolhidas nesta aba (não é salvo, é só preferência visual local)
 const collapsedFolders = new Set();
+
+// Playlist automática (autoplay sequencial de uma pasta inteira)
+let playlistQueue = [];
+let playlistIndex = -1;
+let playlistActive = false;
+let activePlaylistFolderId = null; // pra saber qual pasta está com autoplay ativo, pra UI
 
 const listEl = document.getElementById("list");
 const addBtn = document.getElementById("addBtn");
@@ -45,6 +60,30 @@ const copyExportBtn = document.getElementById("copyExportBtn");
 const closeExportBtn = document.getElementById("closeExportBtn");
 
 volumeInput.value = String(volume);
+
+function getSoundVolume(id) {
+  return typeof soundVolumes[id] === "number" ? soundVolumes[id] : 1;
+}
+
+function setSoundVolume(id, val) {
+  soundVolumes[id] = val;
+  localStorage.setItem(SOUND_VOLUMES_KEY, JSON.stringify(soundVolumes));
+  applyLiveVolume(id);
+}
+
+function applyLiveVolume(id) {
+  const effective = volume * getSoundVolume(id);
+  const audio = activeAudio.get(id);
+  if (audio) audio.volume = effective;
+  const yt = ytPlayers.get(id);
+  if (yt) {
+    try {
+      yt.setVolume(Math.round(effective * 100));
+    } catch {
+      // player pode não estar pronto ainda
+    }
+  }
+}
 
 // ---------- Renderização ----------
 
@@ -93,6 +132,28 @@ function renderGroup(folderId, label, groupSounds) {
   title.className = "folder-title";
   title.textContent = `${label} (${groupSounds.length})`;
   header.appendChild(title);
+
+  if (groupSounds.length > 0) {
+    const isThisPlaylistActive = activePlaylistFolderId === folderId;
+    const playlistBtn = document.createElement("button");
+    playlistBtn.className = "folder-playlist-btn";
+    playlistBtn.textContent = isThisPlaylistActive ? "⏹" : "▶";
+    playlistBtn.title = isThisPlaylistActive
+      ? "Parar a playlist desta pasta"
+      : "Tocar esta pasta inteira em sequência, para todos";
+    playlistBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (isThisPlaylistActive) {
+        stopPlaylistForEveryone();
+      } else {
+        playFolderForEveryone(
+          folderId,
+          groupSounds.map((s) => s.id)
+        );
+      }
+    };
+    header.appendChild(playlistBtn);
+  }
 
   if (folderId !== null && role === "GM") {
     const delFolderBtn = document.createElement("button");
@@ -170,6 +231,19 @@ function buildSoundRow(sound) {
   name.appendChild(document.createTextNode(sound.name));
   row.appendChild(name);
 
+  const soundVolumeInput = document.createElement("input");
+  soundVolumeInput.type = "range";
+  soundVolumeInput.className = "sound-volume";
+  soundVolumeInput.min = "0";
+  soundVolumeInput.max = "1";
+  soundVolumeInput.step = "0.01";
+  soundVolumeInput.value = String(getSoundVolume(sound.id));
+  soundVolumeInput.title = "Volume individual deste som";
+  soundVolumeInput.addEventListener("input", () => {
+    setSoundVolume(sound.id, parseFloat(soundVolumeInput.value));
+  });
+  row.appendChild(soundVolumeInput);
+
   if (role === "GM") {
     const folderSelect = document.createElement("select");
     folderSelect.className = "folder-select";
@@ -245,12 +319,85 @@ function stopAllForEveryone() {
   OBR.broadcast.sendMessage(CHANNEL, { op: "stopAll" }, { destination: "ALL" });
 }
 
+function playFolderForEveryone(folderId, ids) {
+  OBR.broadcast.sendMessage(
+    CHANNEL,
+    { op: "playPlaylist", folderId, ids },
+    { destination: "ALL" }
+  );
+}
+
+function stopPlaylistForEveryone() {
+  OBR.broadcast.sendMessage(CHANNEL, { op: "stopPlaylist" }, { destination: "ALL" });
+}
+
+function startPlaylistLocal(folderId, ids) {
+  // Cancela qualquer playlist anterior em andamento nesta aba antes de começar a nova
+  if (playlistActive) {
+    stopPlaylistLocal();
+  }
+
+  if (!ids || ids.length === 0) return;
+
+  activePlaylistFolderId = folderId;
+  playlistActive = true;
+  playlistQueue = [...ids];
+  playlistIndex = -1;
+  advancePlaylist();
+}
+
+function advancePlaylist() {
+  playlistIndex++;
+
+  if (!playlistActive || playlistIndex >= playlistQueue.length) {
+    playlistActive = false;
+    playlistQueue = [];
+    playlistIndex = -1;
+    activePlaylistFolderId = null;
+    render();
+    return;
+  }
+
+  const id = playlistQueue[playlistIndex];
+  const sound = sounds.find((s) => s.id === id);
+
+  if (!sound) {
+    // Som foi removido nesse meio tempo: pula pro próximo da fila
+    advancePlaylist();
+    return;
+  }
+
+  playLocal({
+    id: sound.id,
+    type: sound.type || "audio",
+    url: sound.url,
+    videoId: sound.videoId,
+    start: sound.start || 0,
+  });
+  render();
+}
+
+function stopPlaylistLocal() {
+  const currentId = playlistActive ? playlistQueue[playlistIndex] : null;
+  playlistActive = false;
+  playlistQueue = [];
+  playlistIndex = -1;
+  activePlaylistFolderId = null;
+  if (currentId) {
+    fadeOutAndStop(currentId);
+  } else {
+    render();
+  }
+}
+
 function handleBroadcast(data) {
   if (data.op === "stop") stopLocal(data.id);
   else if (data.op === "stopAll") stopAllLocal();
   else if (data.op === "play") playLocal(data);
   else if (data.op === "pause") pauseLocal(data.id);
   else if (data.op === "resume") resumeLocal(data.id);
+  else if (data.op === "playPlaylist") startPlaylistLocal(data.folderId, data.ids);
+  else if (data.op === "stopPlaylist") stopPlaylistLocal();
 }
 
 function playLocal(data) {
@@ -262,6 +409,8 @@ function playLocal(data) {
 }
 
 function playAudioLocal(id, url) {
+  clearFade(id);
+
   const existing = activeAudio.get(id);
   if (existing) {
     existing.pause();
@@ -269,11 +418,14 @@ function playAudioLocal(id, url) {
   }
 
   const audio = new Audio(url);
-  audio.volume = volume;
+  audio.volume = volume * getSoundVolume(id);
   audio.addEventListener("ended", () => {
     activeAudio.delete(id);
     soundState.delete(id);
     render();
+    if (playlistActive && playlistQueue[playlistIndex] === id) {
+      advancePlaylist();
+    }
   });
   activeAudio.set(id, audio);
 
@@ -335,6 +487,73 @@ function resumeLocal(id) {
 }
 
 function stopLocal(id) {
+  fadeOutAndStop(id);
+}
+
+function stopAllLocal() {
+  // Cancela a playlist automática também, senão ela tentaria avançar pro próximo som
+  playlistActive = false;
+  playlistQueue = [];
+  playlistIndex = -1;
+  activePlaylistFolderId = null;
+
+  const ids = new Set([...activeAudio.keys(), ...ytPlayers.keys()]);
+  for (const id of ids) {
+    if (soundState.get(id)) fadeOutAndStop(id);
+  }
+}
+
+const FADE_MS = 1200;
+const fadeTimers = new Map(); // id -> intervalId, pra poder cancelar um fade em andamento
+
+function clearFade(id) {
+  const t = fadeTimers.get(id);
+  if (t) {
+    clearInterval(t);
+    fadeTimers.delete(id);
+  }
+}
+
+function fadeOutAndStop(id) {
+  clearFade(id);
+
+  const audio = activeAudio.get(id);
+  const yt = ytPlayers.get(id);
+
+  if (!audio && !yt) {
+    soundState.delete(id);
+    render();
+    return;
+  }
+
+  const targetVolume = volume * getSoundVolume(id);
+  const steps = 20;
+  const stepMs = FADE_MS / steps;
+  let step = 0;
+
+  const interval = setInterval(() => {
+    step++;
+    const factor = Math.max(0, 1 - step / steps);
+    if (audio) audio.volume = targetVolume * factor;
+    if (yt) {
+      try {
+        yt.setVolume(Math.round(targetVolume * factor * 100));
+      } catch {
+        // ignora se o player não estiver pronto
+      }
+    }
+
+    if (step >= steps) {
+      clearInterval(interval);
+      fadeTimers.delete(id);
+      finalizeStop(id, targetVolume);
+    }
+  }, stepMs);
+
+  fadeTimers.set(id, interval);
+}
+
+function finalizeStop(id, restoreVolume) {
   const audio = activeAudio.get(id);
   if (audio) {
     audio.pause();
@@ -345,30 +564,19 @@ function stopLocal(id) {
   if (yt) {
     try {
       yt.stopVideo();
+      if (typeof restoreVolume === "number") {
+        yt.setVolume(Math.round(restoreVolume * 100));
+      }
     } catch {
       // ignora se o player não estiver pronto
     }
   }
   soundState.delete(id);
   render();
-}
 
-function stopAllLocal() {
-  for (const audio of activeAudio.values()) {
-    audio.pause();
-    audio.currentTime = 0;
+  if (playlistActive && playlistQueue[playlistIndex] === id) {
+    advancePlaylist();
   }
-  activeAudio.clear();
-
-  for (const yt of ytPlayers.values()) {
-    try {
-      yt.stopVideo();
-    } catch {
-      // ignora se o player não estiver pronto
-    }
-  }
-  soundState.clear();
-  render();
 }
 
 // ---------- YouTube ----------
@@ -415,15 +623,25 @@ async function ensureYoutubePlayerFor(id) {
           ytPlayers.set(id, player);
           resolve(player);
         },
+        onStateChange: (e) => {
+          if (window.YT && e.data === window.YT.PlayerState.ENDED) {
+            soundState.delete(id);
+            render();
+            if (playlistActive && playlistQueue[playlistIndex] === id) {
+              advancePlaylist();
+            }
+          }
+        },
       },
     });
   });
 }
 
 async function playYoutubeLocal(id, videoId, start) {
+  clearFade(id);
   try {
     const player = await ensureYoutubePlayerFor(id);
-    player.setVolume(Math.round(volume * 100));
+    player.setVolume(Math.round(volume * getSoundVolume(id) * 100));
     player.loadVideoById({ videoId, startSeconds: start });
     player.playVideo();
     audioUnlocked = true;
@@ -729,15 +947,11 @@ copyExportBtn.addEventListener("click", async () => {
 volumeInput.addEventListener("input", () => {
   volume = parseFloat(volumeInput.value);
   localStorage.setItem(VOLUME_KEY, String(volume));
-  for (const audio of activeAudio.values()) {
-    audio.volume = volume;
+  for (const id of activeAudio.keys()) {
+    applyLiveVolume(id);
   }
-  for (const yt of ytPlayers.values()) {
-    try {
-      yt.setVolume(Math.round(volume * 100));
-    } catch {
-      // player pode não estar pronto ainda
-    }
+  for (const id of ytPlayers.keys()) {
+    applyLiveVolume(id);
   }
 });
 
